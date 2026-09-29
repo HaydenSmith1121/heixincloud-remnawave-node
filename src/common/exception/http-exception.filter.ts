@@ -3,6 +3,11 @@ import { Request, Response } from 'express';
 
 import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus, Logger } from '@nestjs/common';
 
+import {
+    HX_UNKNOWN_ERROR_CODE,
+    hxErrorCodeForLegacyCode,
+} from '@libs/contracts/constants/errors';
+
 import { HttpExceptionWithErrorCodeType } from './http-exeception-with-error-code.type';
 
 @Catch(HttpExceptionWithErrorCodeType, ZodValidationException)
@@ -26,21 +31,31 @@ export class HttpExceptionFilter implements ExceptionFilter {
             }
         }
 
+        const hxCode = hxErrorCodeForLegacyCode(errorCode) ?? HX_UNKNOWN_ERROR_CODE;
+
         if (exception instanceof ZodValidationException) {
-            this.logger.error(exception.getResponse());
+            this.logger.error({
+                timestamp: new Date().toISOString(),
+                code: errorCode,
+                hxCode,
+                path: request.url,
+                message: '[ZodValidationException] ' + JSON.stringify(exception.getResponse()),
+            });
             response.status(status).json(exception.getResponse());
         } else {
-            // this.logger.error({
-            //     timestamp: new Date().toISOString(),
-            //     code: errorCode,
-            //     path: request.url,
-            //     message: errorMessage,
-            // });
+            this.logger.error({
+                timestamp: new Date().toISOString(),
+                code: errorCode,
+                hxCode,
+                path: request.url,
+                message: errorMessage,
+            });
             response.status(status).json({
                 timestamp: new Date().toISOString(),
                 path: request.url,
                 message: errorMessage,
                 errorCode,
+                hxCode,
             });
         }
     }
